@@ -31,18 +31,30 @@ class MovieActorGraph(object):
         
         
     def makeActorList(self,actorData):
+        '''
+        construct self.actorList using actor json data
+        '''
         self.actorList=[]
         for actor in actorData:
             actorInstance = Actor(actor["name"],actor["age"],actor["movies"])
             self.actorList.append(actorInstance)
             
     def makeMoiveList(self,movieData):
+        '''
+        construct self.movieList using movie json data
+        '''
         self.movieList=[]
         for movie in movieData:
             movieInstance = Movie(movie["name"],movie["year"],movie["gross"],movie["actors"])
             self.movieList.append(movieInstance)
             
     def makeEdge(self):
+        '''
+        construct edgeList using self.movieList and self.actorList
+        Each edge connects a actor and a movie and weight
+        weight is an approximate value of how much the actor earned in the movie
+        weight is partially determined by how top the actor appear in the movie's cast list
+        '''
         self.edgeList=[]
         for movie in self.movieList:
             numActor = len(movie.actors)
@@ -57,12 +69,18 @@ class MovieActorGraph(object):
                     self.edgeList.append(edge)
     
     def getMovie(self,movieName):
+        '''
+        get information of a movie given its name
+        '''
         for movie in self.movieList:
             if (movie.name==movieName):
                 return movie
         return None
     
     def getMoviesOfActor(self,actorName):
+        '''
+        get filmography of an actor
+        '''
         moviesOfActor=[]
         for edge in self.edgeList:
             if (edge.actor.name==actorName):
@@ -70,6 +88,9 @@ class MovieActorGraph(object):
         return moviesOfActor
 
     def getActorsOfMovie(self,movieName):
+        '''
+        get cast of a movie
+        '''
         actorOfMovie=[]
         for edge in self.edgeList:
             if (edge.movie.name==movieName):
@@ -77,6 +98,9 @@ class MovieActorGraph(object):
         return actorOfMovie
     
     def getMostGrossing(self,listCapacity):
+        '''
+        get the top X earning actors, where X is the listCapacity
+        '''
         actorIncomeDict={}
         for edge in self.edgeList:
             if (edge.actor.name not in actorIncomeDict.keys()):
@@ -88,6 +112,9 @@ class MovieActorGraph(object):
         return actorIncomeDict
     
     def getOldest(self,listCapacity):
+        '''
+        get the oldest X actors, where X is the listCapacity
+        '''
         ageDict={}
         for actor in self.actorList:
             ageDict[actor.name]=actor.age
@@ -96,15 +123,21 @@ class MovieActorGraph(object):
         return ageDict
     
     def getMovieByYear(self,year):
+        '''
+        get all movies of a specific year
+        '''
         movies=[]
         for movie in self.movieList:
             if (movie.year==year):
                 movies.append(movie)
         return movies
     
-    def getActorByAge(self,age):
+    def getActorByYear(self,year):
+        '''
+        get all actors who was in a movie in a given year
+        '''
         actors=[]
-        for actor in self.actorList:
-            if (actor.age==age):
-                actors.append(actor)
+        for edge in self.edgeList:
+            if (edge.movie.year==year):
+                actors.append(edge.actor)
         return actors

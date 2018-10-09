@@ -65,12 +65,18 @@ class TestGraphMethods(unittest.TestCase):
         for movie in year2000:
             self.assertEqual(2000, movie.year)
     
-    def testGetActorByAge(self):
+    def testGetActorByYear(self):
         graph = MovieActorGraph()
-        age30 = graph.getActorByAge(30)
-        for actor in age30:
-            self.assertEqual(30, actor.age)
-    
+        year2010 = graph.getActorByYear(2010)
+        for actor in year2010:
+            movies = graph.getMoviesOfActor(actor.name)
+            found=False
+            for movie in movies:
+                if (movie.year==2010):
+                    found=True
+                    break
+            if (not found): 
+                self.fail("actor"+actor.name+" was not in any 2010 movie")
 
 if __name__ == '__main__':
     unittest.main()
