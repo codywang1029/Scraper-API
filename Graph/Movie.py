@@ -12,9 +12,19 @@ class Movie(object):
         self.name=name
         self.year=year
         self.gross=gross
-        self.actors=actors
+        self.actors=[]
+        for actor in actors:
+            self.actors.append(actor.replace(" ","_"))
         
         
-    def printMovie(self):
+    def print_movie(self):
         print(self.name+" "+str(self.year)+" "+str(self.gross),end=': ')
         print(self.actors)
+        
+    def dictify(self):
+        dict={}
+        dict["name"]=self.name
+        dict["year"]=self.year
+        dict["actors"]=self.actors
+        dict["box_office"]=self.gross
+        return dict

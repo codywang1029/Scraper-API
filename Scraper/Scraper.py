@@ -10,15 +10,14 @@ import json
 import time
 import random
 from bs4 import BeautifulSoup
-from Graph.Actor import Actor
-from Graph.Movie import Movie
-from itertools import cycle
+from graph.actor import Actor
+from graph.movie import Movie
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
 
-def encodeActor(actor):
+def encode_actor(actor):
     '''encode Actor instance to json'''
     if isinstance(actor, Actor):
         return {"name":actor.name,"age":actor.age,"movies":actor.movies}
@@ -26,44 +25,44 @@ def encodeActor(actor):
         logging.error("Trying to serialize a non-Actor instance")
         
         
-def encodeMovie(movie):     
+def encode_movie(movie):     
     '''encode Movie instance to json'''
     if isinstance(movie, Movie):
-        return {"name":movie.name,"year":movie.year,"gross":movie.gross,"actors":movie.actors}
+        return {"name":movie.name,"year":movie.year,"box_office":movie.gross,"actors":movie.actors}
     else:
         logging.error("Trying to serialize a non-Movie instance")
            
-def parseAge(ageStr):
+def parse_age(age_str):
     '''convert the str '(age xx)' to age int'''
-    age=ageStr[-3:-1]
+    age=age_str[-3:-1]
     age=int(age)
     return age
 
-def parseGross(grossStr):
+def parse_gross(gross_str):
     '''convert box office string to a float'''
     gross=0
-    for x in grossStr:
+    for x in gross_str:
         if (not str(x).isdigit()):
-            grossStr=grossStr[1:]
+            gross_str=gross_str[1:]
         else:
             break
     
-    newStr=""
-    for i in range(0,len(grossStr)):
-        char=grossStr[i]
+    new_str=""
+    for i in range(0,len(gross_str)):
+        char=gross_str[i]
         if (char.isdigit()):
-            newStr=newStr+char
+            new_str=new_str+char
         if (char==' '):
             try:
-                gross=float(newStr)
+                gross=float(new_str)
             except ValueError:
                 return 0
-            if (grossStr[i+1]=='m'):
+            if (gross_str[i+1]=='m'):
                 gross=gross*1000000
             return gross
-    return float(newStr)
+    return float(new_str)
 
-def readYear(p):
+def read_year(p):
     '''read a paragraph and take the first 4-digit string as the year of a movie'''
     year=""
     for i in range(0,len(p)):
@@ -74,103 +73,103 @@ def readYear(p):
                     return year
     return ""
     
-def parseActor(soup):
+def parse_actor(soup):
     '''Parser for actor. Read name, age, movies of an actor page.
     @return: actor instance, list of possible movie links'''
-    nameTag=soup.find('h1',{"class":"firstHeading"})
-    name=nameTag.text
-    ageTag=soup.find('span',{"class":"noprint ForceAgeToShow"})
-    age=parseAge(ageTag.text)
-    FilmTag=soup.find('span',text="Filmography")
-    if (FilmTag==None):
-        FilmTag=soup.find('span',text="Selected filmography")
-        if (FilmTag==None):
-            FilmTag=soup.find('span',text="Partial filmography")
-            if (FilmTag==None):          
+    name_tag=soup.find('h1',{"class":"firstHeading"})
+    name=name_tag.text
+    age_tag=soup.find('span',{"class":"noprint ForceAgeToShow"})
+    age=parse_age(age_tag.text)
+    film_tag=soup.find('span',text="Filmography")
+    if (film_tag==None):
+        film_tag=soup.find('span',text="Selected filmography")
+        if (film_tag==None):
+            film_tag=soup.find('span',text="Partial filmography")
+            if (film_tag==None):          
                 logging.warn("The actor %s has no filmography.",name)
                 return None,[]   
-    filmTable=soup.find('table',{"class":"wikitable"})
-    if (filmTable==None):
+    film_table=soup.find('table',{"class":"wikitable"})
+    if (film_table==None):
         logging.warn("%s: Bad page format to parse film list",name)
         return None,[]
-    movies = filmTable.find_all('a')
-    movieList = list(map(lambda x:x.text,movies))
-    potentialMovies=[]
+    movies = film_table.find_all('a')
+    movie_list = list(map(lambda x:x.text,movies))
+    potential_movies=[]
     for film in movies:
         try:
             href = film['href']
-            potentialMovies.append(href)
+            potential_movies.append(href)
         except KeyError:
             logging.error("ignoring movies with no href")
-    actor = Actor(name,age,movieList)
-    return actor,potentialMovies
+    actor = Actor(name,age,0,movie_list)
+    return actor,potential_movies
 
-def parseMovie(soup):
+def parse_movie(soup):
     '''Parser for movie. Read name, year, box office, movies of a movie page.
     @return: movie instance, list of possible actor links'''
-    nameTag=soup.find('h1',{"class":"firstHeading"})
-    name=nameTag.text
-    boxOfficeTag = soup.find('th',text="Box office")
-    if (boxOfficeTag==None):
+    name_tag=soup.find('h1',{"class":"firstHeading"})
+    name=name_tag.text
+    box_office_tag = soup.find('th',text="Box office")
+    if (box_office_tag==None):
         logging.warn("The film %s has no box office.",name)
         return None,[]
-    boxOffice = boxOfficeTag.next_sibling.text
+    boxOffice = box_office_tag.next_sibling.text
     try:
-        gross = parseGross(boxOffice)
+        gross = parse_gross(boxOffice)
     except ValueError:
         logging.error("The movie %s has a bad formatted box office",name)
         return None,[]
-    firstP = soup.find_all('p')
+    first_p = soup.find_all('p')
     i=0
-    year = readYear(firstP)
-    while (year=="" and i<min(5,len(firstP)-1)):
-        year = readYear(firstP[i].text)
+    year = read_year(first_p)
+    while (year=="" and i<min(5,len(first_p)-1)):
+        year = read_year(first_p[i].text)
         i=i+1
     try:
         year=int(year)
     except ValueError:
         logging.warn("The movie %s has a bad formatted year",name)
         return None,[]
-    castTag = soup.find('span',{"id":"Cast"})
-    if(castTag==None):
+    cast_tag = soup.find('span',{"id":"Cast"})
+    if(cast_tag==None):
         logging.warn("The film %s has no Cast.",name)
         return None,[]
-    while(castTag.name!='ul'):
-        castTag=castTag.next_element
-    castList = castTag.find_all('a')
-    filteredList = []
-    for elem in castList:
+    while(cast_tag.name!='ul'):
+        cast_tag=cast_tag.next_element
+    cast_list = cast_tag.find_all('a')
+    filtered_list = []
+    for elem in cast_list:
         try:
             if (elem.text == elem['title']):
-                filteredList.append(elem)
+                filtered_list.append(elem)
         except KeyError:
             logging.error("ingoring <a> without title")
-    castList = list(map(lambda x:x.text,filteredList))
-    potentialActors = list(map(lambda x:x['href'],filteredList))
-    movie = Movie(name,year,gross,castList)
-    return movie,potentialActors
+    cast_list = list(map(lambda x:x.text,filtered_list))
+    potential_actors = list(map(lambda x:x['href'],filtered_list))
+    movie = Movie(name,year,gross,cast_list)
+    return movie,potential_actors
 
-def run(actors,movies,visitedUrls,potentialActors,potentialMovies,actorJson,movieJson):
+def run(actors,movies,visited_urls,potential_actors,potential_movies,actor_json,movie_json):
     headers = requests.utils.default_headers()
     headers['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
     url = "https://en.wikipedia.org/wiki/The_Shawshank_Redemption"
-    badUrlsFile = open("badUrls.txt","r")
-    badUrl=set()
-    for line in badUrlsFile:
-        badUrl.add(line[:-1])
+    bad_urls_file = open("bad_urls.txt","r")
+    bad_url=set()
+    for line in bad_urls_file:
+        bad_url.add(line[:-1])
     while (actors<=250 or movies<=125):
-        if (url in visitedUrls or url in badUrl):
-            if (potentialActors==[] and potentialMovies==[]):
+        if (url in visited_urls or url in bad_url):
+            if (potential_actors==[] and potential_movies==[]):
                 url = "https://en.wikipedia.org/wiki/La_La_Land_(film)"
-            if (potentialMovies==[]):
-                url = potentialActors.pop(random.randint(0,len(potentialActors)-1))
-            elif(potentialActors==[]):
-                url = potentialMovies.pop(random.randint(0,len(potentialMovies)-1))
+            if (potential_movies==[]):
+                url = potential_actors.pop(random.randint(0,len(potential_actors)-1))
+            elif(potential_actors==[]):
+                url = potential_movies.pop(random.randint(0,len(potential_movies)-1))
             else:
                 if (actors>movies*2):
-                    url = potentialMovies.pop(random.randint(0,len(potentialMovies)-1))
+                    url = potential_movies.pop(random.randint(0,len(potential_movies)-1))
                 else:
-                    url = potentialActors.pop(random.randint(0,len(potentialActors)-1))
+                    url = potential_actors.pop(random.randint(0,len(potential_actors)-1))
             url="https://en.wikipedia.org"+url
             continue
         logging.info("Current Progress(Actor: %d, Movie: %d)",actors,movies)
@@ -182,59 +181,59 @@ def run(actors,movies,visitedUrls,potentialActors,potentialMovies,actorJson,movi
         try:
             page = session.get(url)
         except:
-            return actors,movies,visitedUrls,potentialActors,potentialMovies
-        visitedUrls.append(url)
+            return actors,movies,visited_urls,potential_actors,potential_movies
+        visited_urls.append(url)
         soup = BeautifulSoup(page.content,"lxml")
-        ageTag=soup.find('span',{"class":"noprint ForceAgeToShow"})
-        if (ageTag==None):
-            movie,actorsInMovie=parseMovie(soup)
-            if (len(potentialActors)<len(actorsInMovie)):
-                potentialActors=actorsInMovie
+        age_tag=soup.find('span',{"class":"noprint ForceAgeToShow"})
+        if (age_tag==None):
+            movie,actors_in_movie=parse_movie(soup)
+            if (len(potential_actors)<len(actors_in_movie)):
+                potential_actors=actors_in_movie
             if (movie != None):
-                movieJson.write(",")
-                json.dump(movie, movieJson,default=encodeMovie)
+                movie_json.write(",")
+                json.dump(movie, movie_json,default=encode_movie)
                 movies=movies+1
             else:
-                badUrl.add(url)
+                bad_url.add(url)
         else:
-            actor,moviesOfActor=parseActor(soup)
-            if (len(potentialMovies)<len(moviesOfActor)):
-                potentialMovies=moviesOfActor
+            actor,movies_of_actor=parse_actor(soup)
+            if (len(potential_movies)<len(movies_of_actor)):
+                potential_movies=movies_of_actor
             if (actor != None):
-                actorJson.write(",")
-                json.dump(actor, actorJson,default=encodeActor)
+                actor_json.write(",")
+                json.dump(actor, actor_json,default=encode_actor)
                 actors=actors+1
             else:
-                badUrl.add(url)
+                bad_url.add(url)
         
-        time.sleep(0)
-    badUrlsFile = open("badUrls.txt","w+")
-    for url in badUrl:
+        #time.sleep(0)
+    bad_urls_file = open("bad_urls.txt","w+")
+    for url in bad_url:
         try:
-            badUrlsFile.write(url+"\n")
+            bad_urls_file.write(url+"\n")
         except:
             logging.error("Cannot Write %s", url+"\n")
-    return actors,movies,visitedUrls,potentialActors,potentialMovies
+    return actors,movies,visited_urls,potential_actors,potential_movies
 
 if __name__ == '__main__':
-    startTime = time.time()
+    start_time = time.time()
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
     logging.info("Scraper Starts...")
     actors=0
     movies=0
-    visitedUrls=[]
-    potentialActors=[]
-    potentialMovies=[]
-    movieJson = open("movie.json","w+")
-    actorJson = open("actor.json","w+")
-    movieJson.write("[{}")
-    actorJson.write("[{}")
-    actors,movies,visitedUrls,potentialActors,potentialMovies=run(actors,movies,visitedUrls,potentialActors,potentialMovies,actorJson,movieJson)
+    visited_urls=[]
+    potential_actors=[]
+    potential_movies=[]
+    movie_json = open("movie.json","w+")
+    actor_json = open("actor.json","w+")
+    movie_json.write("[{}")
+    actor_json.write("[{}")
+    actors,movies,visited_urls,potential_actors,potential_movies=run(actors,movies,visited_urls,potential_actors,potential_movies,actor_json,movie_json)
     while (actors<=250 or movies<=125):
         logging.info("Trying to restart")
-        actors,movies,visitedUrls,potentialActors,potentialMovies=run(actors,movies,visitedUrls,potentialActors,potentialMovies,actorJson,movieJson)
-    runTime=(time.time()-startTime)/60
-    movieJson.write("]")
-    actorJson.write("]")
-    logging.info("Scraper Stops Successfully. Scraped %d Actors, %d Movies. Took %f minutes",actors,movies,runTime)
+        actors,movies,visited_urls,potential_actors,potential_movies=run(actors,movies,visited_urls,potential_actors,potential_movies,actor_json,movie_json)
+    run_time=(time.time()-start_time)/60
+    movie_json.write("]")
+    actor_json.write("]")
+    logging.info("Scraper Stops Successfully. Scraped %d Actors, %d Movies. Took %f minutes",actors,movies,run_time)
 
